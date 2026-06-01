@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: affora-api
+    runtime: node
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm run start:prod
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
