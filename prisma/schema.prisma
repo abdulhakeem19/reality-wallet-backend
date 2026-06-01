@@ -1,0 +1,122 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  googleId  String   @unique
+  email     String   @unique
+  name      String
+  avatarUrl String?
+  createdAt DateTime @default(now())
+
+  member           HouseholdMember?
+  salaryCycles     SalaryCycle[]
+  transactions     Transaction[]
+  streaks          Streak[]
+  xpEvents         XpEvent[]
+}
+
+model Household {
+  id         String   @id @default(cuid())
+  inviteCode String   @unique
+  createdAt  DateTime @default(now())
+
+  members           HouseholdMember[]
+  goals             Goal[]
+  committedExpenses CommittedExpense[]
+}
+
+model HouseholdMember {
+  id          String   @id @default(cuid())
+  householdId String
+  userId      String   @unique
+  role        String   @default("member") // owner | member
+  joinedAt    DateTime @default(now())
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SalaryCycle {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  month     Int
+  year      Int
+  income    Float
+  salaryDay Int      @default(1)
+  startDate DateTime
+  createdAt DateTime @default(now())
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@unique([userId, month, year])
+}
+
+model Transaction {
+  id            Int      @id @default(autoincrement())
+  userId        String
+  salaryCycleId Int?
+  amount        Float
+  category      String
+  date          DateTime
+  type          String
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  salaryCycle SalaryCycle? @relation(fields: [salaryCycleId], references: [id])
+}
+
+model CommittedExpense {
+  id          Int      @id @default(autoincrement())
+  householdId String
+  name        String
+  amount      Float
+  category    String
+  isRecurring Boolean  @default(true)
+  frequency   String   @default("monthly")
+  createdAt   DateTime @default(now())
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+}
+
+model Goal {
+  id            Int      @id @default(autoincrement())
+  householdId   String
+  name          String
+  targetAmount  Float
+  currentAmount Float    @default(0)
+  emoji         String   @default("🎯")
+  createdAt     DateTime @default(now())
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+}
+
+model Streak {
+  id              Int       @id @default(autoincrement())
+  userId          String
+  type            String
+  currentCount    Int       @default(0)
+  bestCount       Int       @default(0)
+  lastCheckinDate DateTime?
+  createdAt       DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model XpEvent {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  eventType   String
+  xpEarned    Int
+  description String
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
