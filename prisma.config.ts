@@ -1,9 +1,8 @@
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
-// URL is provided via schema.prisma env("DATABASE_URL").
-// For migrations, scripts/migrate.js overrides DATABASE_URL with a clean
-// direct connection string before spawning prisma migrate deploy.
+// Migrations are handled by scripts/migrate.js using pg directly.
+// This config is only used by prisma generate (schema → TypeScript types).
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
