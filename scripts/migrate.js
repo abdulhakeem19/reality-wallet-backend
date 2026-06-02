@@ -19,7 +19,8 @@ const MIGRATIONS_DIR = path.join(__dirname, '..', 'prisma', 'migrations');
 const MIGRATIONS_TABLE = '_prisma_migrations';
 
 async function main() {
-  const connectionString = process.env.DATABASE_URL;
+  // Remove any whitespace/newlines that can sneak in when pasting into dashboards
+  const connectionString = (process.env.DATABASE_URL ?? '').replace(/\s/g, '');
   if (!connectionString) {
     console.error('DATABASE_URL is not set — cannot run migrations');
     process.exit(1);
