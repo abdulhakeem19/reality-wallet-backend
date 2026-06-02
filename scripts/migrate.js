@@ -2,15 +2,15 @@
 'use strict';
 
 /**
- * Runs prisma migrate deploy with a clean direct-connection URL.
- * Prisma's CLI rejects pooler URLs (with -pooler in hostname) and the
- * channel_binding query param. We strip both before passing the URL
- * via the child process environment — bypassing prisma.config.ts entirely.
+ * Runs prisma migrate deploy with a direct Neon connection URL.
+ * Strips -pooler from the hostname and channel_binding from query params
+ * so Prisma's CLI can connect. Sets DATABASE_URL in the child process
+ * environment — schema.prisma reads it via env("DATABASE_URL").
  */
 
 const { execSync } = require('child_process');
 
-const raw = process.env.DATABASE_URL ?? '';
+const raw = (process.env.DATABASE_URL ?? '').trim();
 
 if (!raw) {
   console.error('ERROR: DATABASE_URL is not set');
@@ -18,14 +18,23 @@ if (!raw) {
 }
 
 const directUrl = raw
-  .replace(/-pooler\./, '.')              // pooler host → direct host
+  .replace(/-pooler\./, '.')              // ep-xxx-pooler.host → ep-xxx.host
   .replace(/&channel_binding=[^&]*/, '')  // strip &channel_binding=...
   .replace(/\?channel_binding=[^&]*&/, '?')
   .replace(/\?channel_binding=[^&]*$/, '');
 
-console.log('Running prisma migrate deploy...');
+// Log host only (no credentials) so we can verify the URL in deploy logs
+try {
+  const host = directUrl.split('@')[1]?.split('/')[0] ?? 'unknown';
+  console.log(`Running prisma migrate deploy → host: ${host}`);
+} catch (_) {
+  console.log('Running prisma migrate deploy...');
+}
 
 execSync('npx prisma migrate deploy', {
   stdio: 'inherit',
-  env: { ...process.env, DATABASE_URL: directUrl },
+  env: {
+    ...process.env,
+    DATABASE_URL: directUrl,
+  },
 });
