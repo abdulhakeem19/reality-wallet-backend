@@ -1,18 +1,18 @@
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
-// Prisma's CLI URL parser doesn't support channel_binding — strip it so
-// `prisma migrate deploy` works. The runtime PrismaPg adapter reads
-// DATABASE_URL directly and handles the full connection string fine.
-function stripChannelBinding(url: string): string {
-  // Remove &channel_binding=... or ?channel_binding=...& or ?channel_binding=...
-  return url
-    .replace(/&channel_binding=[^&]*/, "")         // mid/end: ...&channel_binding=...
-    .replace(/\?channel_binding=[^&]*&/, "?")      // first, more follow: ?channel_binding=...&
-    .replace(/\?channel_binding=[^&]*$/, "");       // only param: ?channel_binding=...
-}
+// prisma migrate deploy needs a direct (non-pooler) connection.
+// Neon pooler URLs contain '-pooler' in the hostname and channel_binding
+// in the query string — both of which Prisma's CLI rejects.
+// DIRECT_DATABASE_URL can be set explicitly in Render; otherwise we derive
+// it by stripping '-pooler' and 'channel_binding' from DATABASE_URL.
+const raw = process.env.DIRECT_DATABASE_URL ?? process.env.DATABASE_URL ?? "";
 
-const migrationUrl = stripChannelBinding(process.env["DATABASE_URL"] ?? "");
+const migrationUrl = raw
+  .replace(/-pooler\./, ".")              // ep-xxx-pooler.host → ep-xxx.host
+  .replace(/&channel_binding=[^&]*/, "")  // strip &channel_binding=...
+  .replace(/\?channel_binding=[^&]*&/, "?")
+  .replace(/\?channel_binding=[^&]*$/, "");
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
