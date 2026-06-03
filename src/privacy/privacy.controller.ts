@@ -3,7 +3,7 @@ import { Controller, Get, Header } from '@nestjs/common';
 // Public privacy policy page. Served as plain semantic HTML (no inline CSS)
 // so it isn't blocked by helmet's default Content-Security-Policy.
 const LAST_UPDATED = '3 June 2026';
-const CONTACT_EMAIL = 'abdulhakeem@versagcc.com';
+const CONTACT_EMAIL = 'buildwithhakeem@gmail.com';
 
 const PAGE = `<!doctype html>
 <html lang="en">
