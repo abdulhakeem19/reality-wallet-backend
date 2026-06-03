@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 
@@ -9,7 +9,10 @@ async function bootstrap() {
   app.use(helmet());
   app.enableCors({ origin: '*' }); // tighten per-env in production
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
-  app.setGlobalPrefix('api/v1');
+  // Everything is under /api/v1 except the public /privacy policy page.
+  app.setGlobalPrefix('api/v1', {
+    exclude: [{ path: 'privacy', method: RequestMethod.GET }],
+  });
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);

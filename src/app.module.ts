@@ -13,6 +13,7 @@ import { DebtsModule } from './debts/debts.module';
 import { StreaksModule } from './streaks/streaks.module';
 import { XpEventsModule } from './xp-events/xp-events.module';
 import { SyncModule } from './sync/sync.module';
+import { PrivacyModule } from './privacy/privacy.module';
 
 @Module({
   controllers: [AppController],
@@ -30,6 +31,7 @@ import { SyncModule } from './sync/sync.module';
     StreaksModule,
     XpEventsModule,
     SyncModule,
+    PrivacyModule,
   ],
 })
 export class AppModule {}
