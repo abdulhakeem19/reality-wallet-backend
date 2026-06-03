@@ -21,6 +21,9 @@ model User {
   streaks          Streak[]
   xpEvents         XpEvent[]
   debts            Debt[]
+  merchants        Merchant[]
+  accounts         Account[]
+  categories       Category[]
 }
 
 model Household {
@@ -69,10 +72,61 @@ model Transaction {
   date          DateTime
   type          String
   notes         String?
+  source        String   @default("manual")
+  refNo         String?
+  rawMessage    String?
+  accountLast4  String?
+  bankName      String?
+  tags          String?
+  merchantKey   String?
   createdAt     DateTime @default(now())
 
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   salaryCycle SalaryCycle? @relation(fields: [salaryCycleId], references: [id])
+}
+
+// Normalized merchant/counterparty with the user's learned name + category.
+model Merchant {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  rawKey      String
+  displayName String
+  category    String   @default("other")
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, rawKey])
+}
+
+// Bank/card auto-created from captured messages.
+model Account {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  bankName    String
+  last4       String?
+  type        String   @default("other")
+  displayName String?
+  hidden      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// User-created custom categories.
+model Category {
+  id         Int      @id @default(autoincrement())
+  userId     String
+  name       String
+  emoji      String   @default("🏷️")
+  colorValue Float    @default(4280791162)
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
 }
 
 model CommittedExpense {

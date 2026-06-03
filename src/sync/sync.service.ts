@@ -21,16 +21,29 @@ export class SyncService {
   async pull(userId: string) {
     const householdId = await this.householdId(userId);
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    const [cycles, transactions, committedExpenses, goals, debts, streaks, xpEvents] =
-      await Promise.all([
-        this.prisma.salaryCycle.findMany({ where: { userId } }),
-        this.prisma.transaction.findMany({ where: { userId } }),
-        this.prisma.committedExpense.findMany({ where: { householdId } }),
-        this.prisma.goal.findMany({ where: { householdId } }),
-        this.prisma.debt.findMany({ where: { userId } }),
-        this.prisma.streak.findMany({ where: { userId } }),
-        this.prisma.xpEvent.findMany({ where: { userId } }),
-      ]);
+    const [
+      cycles,
+      transactions,
+      committedExpenses,
+      goals,
+      debts,
+      streaks,
+      xpEvents,
+      merchants,
+      accounts,
+      categories,
+    ] = await Promise.all([
+      this.prisma.salaryCycle.findMany({ where: { userId } }),
+      this.prisma.transaction.findMany({ where: { userId } }),
+      this.prisma.committedExpense.findMany({ where: { householdId } }),
+      this.prisma.goal.findMany({ where: { householdId } }),
+      this.prisma.debt.findMany({ where: { userId } }),
+      this.prisma.streak.findMany({ where: { userId } }),
+      this.prisma.xpEvent.findMany({ where: { userId } }),
+      this.prisma.merchant.findMany({ where: { userId } }),
+      this.prisma.account.findMany({ where: { userId } }),
+      this.prisma.category.findMany({ where: { userId } }),
+    ]);
 
     const keyById = new Map<number, string>();
     for (const c of cycles) keyById.set(c.id, cycleKey(c.month, c.year));
@@ -52,6 +65,13 @@ export class SyncService {
         type: t.type,
         notes: t.notes,
         cycleKey: t.salaryCycleId != null ? keyById.get(t.salaryCycleId) ?? null : null,
+        source: t.source,
+        refNo: t.refNo,
+        rawMessage: t.rawMessage,
+        accountLast4: t.accountLast4,
+        bankName: t.bankName,
+        tags: t.tags,
+        merchantKey: t.merchantKey,
         createdAt: t.createdAt.toISOString(),
       })),
       committedExpenses: committedExpenses.map((e) => ({
@@ -91,6 +111,26 @@ export class SyncService {
         description: x.description,
         createdAt: x.createdAt.toISOString(),
       })),
+      merchants: merchants.map((m) => ({
+        rawKey: m.rawKey,
+        displayName: m.displayName,
+        category: m.category,
+        createdAt: m.createdAt.toISOString(),
+      })),
+      accounts: accounts.map((a) => ({
+        bankName: a.bankName,
+        last4: a.last4,
+        type: a.type,
+        displayName: a.displayName,
+        hidden: a.hidden,
+        createdAt: a.createdAt.toISOString(),
+      })),
+      categories: categories.map((c) => ({
+        name: c.name,
+        emoji: c.emoji,
+        colorValue: c.colorValue,
+        createdAt: c.createdAt.toISOString(),
+      })),
     };
   }
 
@@ -108,6 +148,9 @@ export class SyncService {
       await tx.debt.deleteMany({ where: { userId } });
       await tx.streak.deleteMany({ where: { userId } });
       await tx.xpEvent.deleteMany({ where: { userId } });
+      await tx.merchant.deleteMany({ where: { userId } });
+      await tx.account.deleteMany({ where: { userId } });
+      await tx.category.deleteMany({ where: { userId } });
 
       // Re-insert salary cycles, tracking new ids by cycleKey.
       const idByKey = new Map<string, number>();
@@ -136,6 +179,13 @@ export class SyncService {
             type: t.type,
             notes: t.notes ?? null,
             salaryCycleId: t.cycleKey != null ? idByKey.get(t.cycleKey) ?? null : null,
+            source: t.source ?? 'manual',
+            refNo: t.refNo ?? null,
+            rawMessage: t.rawMessage ?? null,
+            accountLast4: t.accountLast4 ?? null,
+            bankName: t.bankName ?? null,
+            tags: t.tags ?? null,
+            merchantKey: t.merchantKey ?? null,
             createdAt: t.createdAt ? new Date(t.createdAt) : undefined,
           },
         });
@@ -204,6 +254,44 @@ export class SyncService {
             xpEarned: x.xpEarned,
             description: x.description,
             createdAt: x.createdAt ? new Date(x.createdAt) : undefined,
+          },
+        });
+      }
+
+      for (const m of snap.merchants ?? []) {
+        await tx.merchant.create({
+          data: {
+            userId,
+            rawKey: m.rawKey,
+            displayName: m.displayName,
+            category: m.category ?? 'other',
+            createdAt: m.createdAt ? new Date(m.createdAt) : undefined,
+          },
+        });
+      }
+
+      for (const a of snap.accounts ?? []) {
+        await tx.account.create({
+          data: {
+            userId,
+            bankName: a.bankName,
+            last4: a.last4 ?? null,
+            type: a.type ?? 'other',
+            displayName: a.displayName ?? null,
+            hidden: a.hidden ?? false,
+            createdAt: a.createdAt ? new Date(a.createdAt) : undefined,
+          },
+        });
+      }
+
+      for (const c of snap.categories ?? []) {
+        await tx.category.create({
+          data: {
+            userId,
+            name: c.name,
+            emoji: c.emoji ?? '🏷️',
+            colorValue: c.colorValue ?? 4280791162,
+            createdAt: c.createdAt ? new Date(c.createdAt) : undefined,
           },
         });
       }
