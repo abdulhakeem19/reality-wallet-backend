@@ -32,6 +32,7 @@ export class SyncService {
       merchants,
       accounts,
       categories,
+      budgets,
     ] = await Promise.all([
       this.prisma.salaryCycle.findMany({ where: { userId } }),
       this.prisma.transaction.findMany({ where: { userId } }),
@@ -43,6 +44,7 @@ export class SyncService {
       this.prisma.merchant.findMany({ where: { userId } }),
       this.prisma.account.findMany({ where: { userId } }),
       this.prisma.category.findMany({ where: { userId } }),
+      this.prisma.budget.findMany({ where: { userId } }),
     ]);
 
     const keyById = new Map<number, string>();
@@ -131,6 +133,11 @@ export class SyncService {
         colorValue: c.colorValue,
         createdAt: c.createdAt.toISOString(),
       })),
+      budgets: budgets.map((b) => ({
+        category: b.category,
+        monthlyLimit: b.monthlyLimit,
+        createdAt: b.createdAt.toISOString(),
+      })),
     };
   }
 
@@ -151,6 +158,7 @@ export class SyncService {
       await tx.merchant.deleteMany({ where: { userId } });
       await tx.account.deleteMany({ where: { userId } });
       await tx.category.deleteMany({ where: { userId } });
+      await tx.budget.deleteMany({ where: { userId } });
 
       // Re-insert salary cycles, tracking new ids by cycleKey.
       const idByKey = new Map<string, number>();
@@ -292,6 +300,17 @@ export class SyncService {
             emoji: c.emoji ?? '🏷️',
             colorValue: c.colorValue ?? 4280791162,
             createdAt: c.createdAt ? new Date(c.createdAt) : undefined,
+          },
+        });
+      }
+
+      for (const b of snap.budgets ?? []) {
+        await tx.budget.create({
+          data: {
+            userId,
+            category: b.category,
+            monthlyLimit: b.monthlyLimit,
+            createdAt: b.createdAt ? new Date(b.createdAt) : undefined,
           },
         });
       }

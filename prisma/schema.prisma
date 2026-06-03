@@ -24,6 +24,7 @@ model User {
   merchants        Merchant[]
   accounts         Account[]
   categories       Category[]
+  budgets          Budget[]
 }
 
 model Household {
@@ -127,6 +128,19 @@ model Category {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, name])
+}
+
+// Monthly spending cap per category.
+model Budget {
+  id           Int      @id @default(autoincrement())
+  userId       String
+  category     String
+  monthlyLimit Float
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, category])
 }
 
 model CommittedExpense {
