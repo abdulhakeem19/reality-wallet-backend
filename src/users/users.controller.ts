@@ -6,6 +6,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 
 class UpdateUserDto {
   @IsOptional() @IsString() name?: string;
+  @IsOptional() @IsString() avatarUrl?: string;
 }
 
 @UseGuards(AuthGuard('jwt'))
