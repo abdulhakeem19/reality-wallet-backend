@@ -29,6 +29,13 @@ notes. You provide this directly; we do not import it from your bank.</p>
 <p><strong>Household information.</strong> If you link a household, we store the
 household membership and invite code so you and your partner can share goals.</p>
 
+<h2>Transaction messages (optional, Android)</h2>
+<p>If you turn on Auto-capture and grant notification access, Affora reads
+bank/UPI transaction notifications <strong>on your device</strong> to draft
+transactions for your review. This message content is parsed locally and is
+<strong>never uploaded</strong> to our servers. You can turn it off any time, and
+you review every draft before it is saved.</p>
+
 <h2>How your data is stored</h2>
 <p>Your data is stored locally on your device and synced to your account on our
 secure backend so it is preserved across devices and reinstalls. All network
