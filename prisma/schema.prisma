@@ -151,6 +151,7 @@ model CommittedExpense {
   category    String
   isRecurring Boolean  @default(true)
   frequency   String   @default("monthly")
+  dueDay      Int?
   createdAt   DateTime @default(now())
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)

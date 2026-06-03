@@ -82,6 +82,7 @@ export class SyncService {
         category: e.category,
         isRecurring: e.isRecurring,
         frequency: e.frequency,
+        dueDay: e.dueDay,
         createdAt: e.createdAt.toISOString(),
       })),
       goals: goals.map((g) => ({
@@ -208,6 +209,7 @@ export class SyncService {
             category: e.category,
             isRecurring: e.isRecurring ?? true,
             frequency: e.frequency ?? 'monthly',
+            dueDay: e.dueDay ?? null,
             createdAt: e.createdAt ? new Date(e.createdAt) : undefined,
           },
         });
