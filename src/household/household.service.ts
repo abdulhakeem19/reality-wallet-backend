@@ -36,22 +36,38 @@ export class HouseholdService {
   }
 
   async join(userId: string, inviteCode: string) {
-    const existing = await this.prisma.householdMember.findUnique({
-      where: { userId },
-    });
-    if (existing) throw new BadRequestException('Already in a household');
-
-    const household = await this.prisma.household.findUnique({
+    const target = await this.prisma.household.findUnique({
       where: { inviteCode: inviteCode.toUpperCase() },
       include: { members: true },
     });
-    if (!household) throw new NotFoundException('Invalid invite code');
-    if (household.members.length >= 2) {
+    if (!target) throw new NotFoundException('Invalid invite code');
+    if (target.members.some((m) => m.userId === userId)) {
+      return this.getHousehold(userId); // already a member of this one
+    }
+    if (target.members.length >= 2) {
       throw new BadRequestException('Household already has 2 members');
     }
 
+    // Every user has a personal household. Allow switching INTO a partner's
+    // household only if the user's current one is just themselves (size 1);
+    // a real 2-person household must be left explicitly first.
+    const current = await this.prisma.householdMember.findUnique({
+      where: { userId },
+      include: { household: { include: { members: true } } },
+    });
+    if (current) {
+      if (current.household.members.length > 1) {
+        throw new BadRequestException(
+          'Leave your current household before joining another',
+        );
+      }
+      // Solo household — remove membership and delete the now-empty household.
+      await this.prisma.householdMember.delete({ where: { userId } });
+      await this.prisma.household.delete({ where: { id: current.householdId } });
+    }
+
     await this.prisma.householdMember.create({
-      data: { householdId: household.id, userId, role: 'member' },
+      data: { householdId: target.id, userId, role: 'member' },
     });
 
     return this.getHousehold(userId);
@@ -91,6 +107,19 @@ export class HouseholdService {
         where: { id: member.household.id },
       });
     }
+
+    // Give the user a fresh personal household so their goals/bills keep working.
+    let inviteCode = generateInviteCode();
+    while (await this.prisma.household.findUnique({ where: { inviteCode } })) {
+      inviteCode = generateInviteCode();
+    }
+    return this.prisma.household.create({
+      data: {
+        inviteCode,
+        members: { create: { userId, role: 'owner' } },
+      },
+      include: { members: { include: { user: true } } },
+    });
   }
 
   // Combined household summary for the home screen

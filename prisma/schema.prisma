@@ -7,18 +7,20 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  googleId  String   @unique
-  email     String   @unique
-  name      String
-  avatarUrl String?
-  createdAt DateTime @default(now())
+  id           String    @id @default(cuid())
+  googleId     String    @unique
+  email        String    @unique
+  name         String
+  avatarUrl    String?
+  createdAt    DateTime  @default(now())
+  lastSyncedAt DateTime?
 
   member           HouseholdMember?
   salaryCycles     SalaryCycle[]
   transactions     Transaction[]
   streaks          Streak[]
   xpEvents         XpEvent[]
+  debts            Debt[]
 }
 
 model Household {
@@ -87,13 +89,14 @@ model CommittedExpense {
 }
 
 model Goal {
-  id            Int      @id @default(autoincrement())
-  householdId   String
-  name          String
-  targetAmount  Float
-  currentAmount Float    @default(0)
-  emoji         String   @default("🎯")
-  createdAt     DateTime @default(now())
+  id                   Int      @id @default(autoincrement())
+  householdId          String
+  name                 String
+  targetAmount         Float
+  currentAmount        Float    @default(0)
+  monthlyContribution  Float    @default(0)
+  emoji                String   @default("🎯")
+  createdAt            DateTime @default(now())
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 }
@@ -117,6 +120,19 @@ model XpEvent {
   xpEarned    Int
   description String
   createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Debt {
+  id             Int      @id @default(autoincrement())
+  userId         String
+  name           String
+  originalAmount Float
+  currentBalance Float
+  monthlyPayment Float
+  interestRate   Float    @default(0)
+  createdAt      DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

@@ -9,6 +9,10 @@ import { SalaryCyclesModule } from './salary-cycles/salary-cycles.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { CommittedExpensesModule } from './committed-expenses/committed-expenses.module';
 import { GoalsModule } from './goals/goals.module';
+import { DebtsModule } from './debts/debts.module';
+import { StreaksModule } from './streaks/streaks.module';
+import { XpEventsModule } from './xp-events/xp-events.module';
+import { SyncModule } from './sync/sync.module';
 
 @Module({
   controllers: [AppController],
@@ -22,6 +26,10 @@ import { GoalsModule } from './goals/goals.module';
     TransactionsModule,
     CommittedExpensesModule,
     GoalsModule,
+    DebtsModule,
+    StreaksModule,
+    XpEventsModule,
+    SyncModule,
   ],
 })
 export class AppModule {}

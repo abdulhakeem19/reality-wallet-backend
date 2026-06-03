@@ -5,6 +5,10 @@ import { PrismaService } from '../prisma/prisma.service';
 
 const googleClient = new OAuth2Client();
 
+function generateInviteCode(): string {
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -13,12 +17,14 @@ export class AuthService {
   ) {}
 
   async googleSignIn(idToken: string) {
-    const ticket = await googleClient.verifyIdToken({
-      idToken,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    }).catch(() => {
-      throw new UnauthorizedException('Invalid Google ID token');
-    });
+    const ticket = await googleClient
+      .verifyIdToken({
+        idToken,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      })
+      .catch(() => {
+        throw new UnauthorizedException('Invalid Google ID token');
+      });
 
     const payload = ticket.getPayload();
     if (!payload?.sub || !payload.email) {
@@ -49,6 +55,11 @@ export class AuthService {
       });
     }
 
+    // Ensure every user has a household (a "personal" one of size 1), so that
+    // goals and committed expenses — which are household-scoped — work for
+    // solo users. Partner-linking later joins this same household.
+    await this.ensurePersonalHousehold(user.id);
+
     return {
       accessToken: this.jwt.sign({ sub: user.id, email: user.email }),
       user: {
@@ -58,5 +69,25 @@ export class AuthService {
         avatarUrl: user.avatarUrl,
       },
     };
+  }
+
+  /** Create a personal household for the user if they aren't in one yet. */
+  private async ensurePersonalHousehold(userId: string) {
+    const existing = await this.prisma.householdMember.findUnique({
+      where: { userId },
+    });
+    if (existing) return;
+
+    let inviteCode = generateInviteCode();
+    while (await this.prisma.household.findUnique({ where: { inviteCode } })) {
+      inviteCode = generateInviteCode();
+    }
+
+    await this.prisma.household.create({
+      data: {
+        inviteCode,
+        members: { create: { userId, role: 'owner' } },
+      },
+    });
   }
 }

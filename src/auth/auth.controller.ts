@@ -3,7 +3,7 @@ import { IsString } from 'class-validator';
 import { AuthService } from './auth.service';
 
 class GoogleSignInDto {
-  @IsString() idToken: string;
+  @IsString() idToken!: string;
 }
 
 @Controller('auth')
