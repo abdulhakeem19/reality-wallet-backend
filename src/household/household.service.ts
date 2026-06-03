@@ -42,7 +42,7 @@ export class HouseholdService {
     });
     if (!target) throw new NotFoundException('Invalid invite code');
     if (target.members.some((m) => m.userId === userId)) {
-      return this.getHousehold(userId); // already a member of this one
+      throw new BadRequestException("That's your own invite code");
     }
     if (target.members.length >= 2) {
       throw new BadRequestException('Household already has 2 members');
