@@ -38,6 +38,7 @@ export class SyncService {
       accounts,
       categories,
       budgets,
+      goalContributions,
     ] = await Promise.all([
       this.prisma.salaryCycle.findMany({ where: { userId } }),
       this.prisma.transaction.findMany({ where: { userId } }),
@@ -52,6 +53,7 @@ export class SyncService {
       this.prisma.account.findMany({ where: { userId } }),
       this.prisma.category.findMany({ where: { userId } }),
       this.prisma.budget.findMany({ where: { userId } }),
+      this.prisma.goalContribution.findMany({ where: { householdId } }),
     ]);
 
     const keyById = new Map<number, string>();
@@ -148,6 +150,14 @@ export class SyncService {
         category: b.category,
         monthlyLimit: b.monthlyLimit,
         createdAt: b.createdAt.toISOString(),
+      })),
+      goalContributions: goalContributions.map((c) => ({
+        uid: c.uid,
+        goalUid: c.goalUid,
+        contributorId: c.contributorId,
+        contributorName: c.contributorName,
+        amount: c.amount,
+        createdAt: c.createdAt.toISOString(),
       })),
     };
   }
@@ -347,6 +357,25 @@ export class SyncService {
             monthlyLimit: b.monthlyLimit,
             createdAt: b.createdAt ? new Date(b.createdAt) : undefined,
           },
+        });
+      }
+
+      // Goal contributions are an append-only household ledger — upsert by uid,
+      // never wipe (so a partner's entries survive the other's push).
+      for (const c of snap.goalContributions ?? []) {
+        const uid: string = c.uid ?? `c_${randomUid()}`;
+        const data = {
+          householdId,
+          goalUid: c.goalUid,
+          contributorId: c.contributorId ?? null,
+          contributorName: c.contributorName ?? null,
+          amount: c.amount,
+          createdAt: c.createdAt ? new Date(c.createdAt) : undefined,
+        };
+        await tx.goalContribution.upsert({
+          where: { uid },
+          create: { uid, ...data },
+          update: data,
         });
       }
 

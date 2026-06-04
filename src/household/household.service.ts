@@ -133,7 +133,7 @@ export class HouseholdService {
     const now = new Date();
     const memberIds = member.household.members.map((m) => m.userId);
 
-    const [committedExpenses, goals, cycles, transactions] = await Promise.all([
+    const [committedExpenses, goals, cycles, transactions, goalContributions] = await Promise.all([
       this.prisma.committedExpense.findMany({
         where: { householdId: member.householdId },
       }),
@@ -153,6 +153,7 @@ export class HouseholdService {
         include: { user: { select: { id: true, name: true, avatarUrl: true } } },
         orderBy: { date: 'desc' },
       }),
+      this.prisma.goalContribution.findMany({ where: { householdId: member.householdId } }),
     ]);
 
     const totalIncome = cycles.reduce((s, c) => s + c.income, 0);
@@ -179,6 +180,11 @@ export class HouseholdService {
       goals,
       cycles,
       transactions,
+      contributions: goalContributions.map((c) => ({
+        goalUid: c.goalUid,
+        contributorName: c.contributorName,
+        amount: c.amount,
+      })),
     };
   }
 }

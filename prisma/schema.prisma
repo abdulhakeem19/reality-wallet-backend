@@ -35,6 +35,7 @@ model Household {
   members           HouseholdMember[]
   goals             Goal[]
   committedExpenses CommittedExpense[]
+  goalContributions GoalContribution[]
 }
 
 model HouseholdMember {
@@ -128,6 +129,22 @@ model Category {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, name])
+}
+
+// Append-only ledger of who contributed to a shared goal.
+model GoalContribution {
+  id              Int      @id @default(autoincrement())
+  uid             String   @unique
+  householdId     String
+  goalUid         String
+  contributorId   String?
+  contributorName String?
+  amount          Float
+  createdAt       DateTime @default(now())
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@index([householdId])
 }
 
 // Monthly spending cap per category.
