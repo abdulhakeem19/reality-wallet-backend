@@ -8,6 +8,11 @@ function cycleKey(month: number, year: number): string {
   return `${year}-${month.toString().padStart(2, '0')}`;
 }
 
+// Fallback identity for a goal that arrived without one (very old client).
+function randomUid(): string {
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+}
+
 @Injectable()
 export class SyncService {
   constructor(private prisma: PrismaService) {}
@@ -37,7 +42,9 @@ export class SyncService {
       this.prisma.salaryCycle.findMany({ where: { userId } }),
       this.prisma.transaction.findMany({ where: { userId } }),
       this.prisma.committedExpense.findMany({ where: { householdId } }),
-      this.prisma.goal.findMany({ where: { householdId } }),
+      this.prisma.goal.findMany({
+        where: { householdId, OR: [{ isShared: true }, { ownerId: userId }] },
+      }),
       this.prisma.debt.findMany({ where: { userId } }),
       this.prisma.streak.findMany({ where: { userId } }),
       this.prisma.xpEvent.findMany({ where: { userId } }),
@@ -86,11 +93,14 @@ export class SyncService {
         createdAt: e.createdAt.toISOString(),
       })),
       goals: goals.map((g) => ({
+        uid: g.uid,
         name: g.name,
         targetAmount: g.targetAmount,
         currentAmount: g.currentAmount,
         monthlyContribution: g.monthlyContribution,
         emoji: g.emoji,
+        isShared: g.isShared,
+        ownerId: g.ownerId,
         createdAt: g.createdAt.toISOString(),
       })),
       debts: debts.map((d) => ({
@@ -152,7 +162,9 @@ export class SyncService {
       await tx.transaction.deleteMany({ where: { userId } });
       await tx.committedExpense.deleteMany({ where: { householdId } });
       await tx.salaryCycle.deleteMany({ where: { userId } });
-      await tx.goal.deleteMany({ where: { householdId } });
+      // NOTE: goals are NOT wiped here — they're reconciled by uid below so
+      // household members don't clobber each other's (and each other's shared)
+      // goals on sync.
       await tx.debt.deleteMany({ where: { userId } });
       await tx.streak.deleteMany({ where: { userId } });
       await tx.xpEvent.deleteMany({ where: { userId } });
@@ -215,19 +227,40 @@ export class SyncService {
         });
       }
 
+      // Goals: upsert by uid so partners don't clobber each other. Shared goals
+      // are household-owned (ownerId null); individual goals belong to this
+      // user. We only reconcile-delete this user's own individual goals.
+      const goalUids: string[] = [];
       for (const g of snap.goals ?? []) {
-        await tx.goal.create({
-          data: {
-            householdId,
-            name: g.name,
-            targetAmount: g.targetAmount,
-            currentAmount: g.currentAmount ?? 0,
-            monthlyContribution: g.monthlyContribution ?? 0,
-            emoji: g.emoji ?? '🎯',
-            createdAt: g.createdAt ? new Date(g.createdAt) : undefined,
-          },
+        const uid: string = g.uid ?? `s_${randomUid()}`;
+        goalUids.push(uid);
+        const shared: boolean = g.isShared ?? false;
+        const data = {
+          name: g.name,
+          targetAmount: g.targetAmount,
+          currentAmount: g.currentAmount ?? 0,
+          monthlyContribution: g.monthlyContribution ?? 0,
+          emoji: g.emoji ?? '🎯',
+          isShared: shared,
+          ownerId: shared ? null : userId,
+          createdAt: g.createdAt ? new Date(g.createdAt) : undefined,
+        };
+        await tx.goal.upsert({
+          where: { uid },
+          create: { uid, householdId, ...data },
+          update: data,
         });
       }
+      // Remove this user's individual goals that they deleted locally (never
+      // touch shared goals or the partner's private goals).
+      await tx.goal.deleteMany({
+        where: {
+          householdId,
+          ownerId: userId,
+          isShared: false,
+          uid: { notIn: goalUids.length > 0 ? goalUids : ['__none__'] },
+        },
+      });
 
       for (const d of snap.debts ?? []) {
         await tx.debt.create({

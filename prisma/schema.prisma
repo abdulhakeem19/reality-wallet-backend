@@ -160,11 +160,17 @@ model CommittedExpense {
 model Goal {
   id                   Int      @id @default(autoincrement())
   householdId          String
+  // Stable device-independent identity so household members upsert the same
+  // goal instead of clobbering each other on sync.
+  uid                  String?  @unique
   name                 String
   targetAmount         Float
   currentAmount        Float    @default(0)
   monthlyContribution  Float    @default(0)
   emoji                String   @default("🎯")
+  // Shared = household goal both partners see/fund; otherwise private to owner.
+  isShared             Boolean  @default(false)
+  ownerId              String?
   createdAt            DateTime @default(now())
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)

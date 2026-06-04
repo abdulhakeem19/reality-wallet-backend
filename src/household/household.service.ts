@@ -137,8 +137,9 @@ export class HouseholdService {
       this.prisma.committedExpense.findMany({
         where: { householdId: member.householdId },
       }),
+      // Family summary shows shared goals only — individual goals stay private.
       this.prisma.goal.findMany({
-        where: { householdId: member.householdId },
+        where: { householdId: member.householdId, isShared: true },
       }),
       this.prisma.salaryCycle.findMany({
         where: { userId: { in: memberIds }, month: now.getMonth() + 1, year: now.getFullYear() },
