@@ -39,6 +39,7 @@ export class SyncService {
       categories,
       budgets,
       goalContributions,
+      netWorthSnapshots,
     ] = await Promise.all([
       this.prisma.salaryCycle.findMany({ where: { userId } }),
       this.prisma.transaction.findMany({ where: { userId } }),
@@ -54,6 +55,7 @@ export class SyncService {
       this.prisma.category.findMany({ where: { userId } }),
       this.prisma.budget.findMany({ where: { userId } }),
       this.prisma.goalContribution.findMany({ where: { householdId } }),
+      this.prisma.netWorthSnapshot.findMany({ where: { userId } }),
     ]);
 
     const keyById = new Map<number, string>();
@@ -130,6 +132,7 @@ export class SyncService {
         rawKey: m.rawKey,
         displayName: m.displayName,
         category: m.category,
+        autoConfirm: m.autoConfirm,
         createdAt: m.createdAt.toISOString(),
       })),
       accounts: accounts.map((a) => ({
@@ -159,6 +162,13 @@ export class SyncService {
         amount: c.amount,
         createdAt: c.createdAt.toISOString(),
       })),
+      netWorthSnapshots: netWorthSnapshots.map((n) => ({
+        date: n.date.toISOString(),
+        assets: n.assets,
+        liabilities: n.liabilities,
+        note: n.note,
+        createdAt: n.createdAt.toISOString(),
+      })),
     };
   }
 
@@ -182,6 +192,7 @@ export class SyncService {
       await tx.account.deleteMany({ where: { userId } });
       await tx.category.deleteMany({ where: { userId } });
       await tx.budget.deleteMany({ where: { userId } });
+      await tx.netWorthSnapshot.deleteMany({ where: { userId } });
 
       // Re-insert salary cycles, tracking new ids by cycleKey.
       const idByKey = new Map<string, number>();
@@ -318,6 +329,7 @@ export class SyncService {
             rawKey: m.rawKey,
             displayName: m.displayName,
             category: m.category ?? 'other',
+            autoConfirm: m.autoConfirm ?? false,
             createdAt: m.createdAt ? new Date(m.createdAt) : undefined,
           },
         });
@@ -356,6 +368,19 @@ export class SyncService {
             category: b.category,
             monthlyLimit: b.monthlyLimit,
             createdAt: b.createdAt ? new Date(b.createdAt) : undefined,
+          },
+        });
+      }
+
+      for (const n of snap.netWorthSnapshots ?? []) {
+        await tx.netWorthSnapshot.create({
+          data: {
+            userId,
+            date: n.date ? new Date(n.date) : new Date(),
+            assets: n.assets ?? 0,
+            liabilities: n.liabilities ?? 0,
+            note: n.note ?? null,
+            createdAt: n.createdAt ? new Date(n.createdAt) : undefined,
           },
         });
       }

@@ -25,6 +25,7 @@ model User {
   accounts         Account[]
   categories       Category[]
   budgets          Budget[]
+  netWorthSnapshots NetWorthSnapshot[]
 }
 
 model Household {
@@ -94,11 +95,28 @@ model Merchant {
   rawKey      String
   displayName String
   category    String   @default("other")
+  autoConfirm Boolean  @default(false)
   createdAt   DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, rawKey])
+}
+
+// Point-in-time wealth snapshot (Pro net-worth tracker). Mirrored on sync so a
+// reinstall restores the user's history.
+model NetWorthSnapshot {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  date        DateTime @default(now())
+  assets      Float    @default(0)
+  liabilities Float    @default(0)
+  note        String?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // Bank/card auto-created from captured messages.
