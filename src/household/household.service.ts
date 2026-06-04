@@ -160,11 +160,21 @@ export class HouseholdService {
       const freq: Record<string, number> = { bimonthly: 2, quarterly: 3, annual: 12 };
       return s + e.amount / (freq[e.frequency] ?? 1);
     }, 0);
+    // Combined spent / saved this month across both members (amounts only —
+    // individual transactions stay private).
+    const totalSpent = transactions
+      .filter((t) => t.type === 'expense')
+      .reduce((s, t) => s + t.amount, 0);
+    const totalSaved = transactions
+      .filter((t) => t.type === 'savings')
+      .reduce((s, t) => s + t.amount, 0);
 
     return {
       totalIncome,
       monthlyCommitted,
       freeMoney: totalIncome - monthlyCommitted,
+      totalSpent,
+      totalSaved,
       committedExpenses,
       goals,
       cycles,
