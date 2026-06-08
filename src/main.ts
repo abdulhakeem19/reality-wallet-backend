@@ -1,3 +1,7 @@
+// Load .env FIRST — before any module evaluates — so env vars (e.g. JWT_SECRET,
+// read at module-load time in JwtModule.register) are populated. On platforms
+// that inject env vars (Render) this is a harmless no-op.
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';

@@ -2,6 +2,10 @@ services:
   - type: web
     name: affora-api
     runtime: node
+    # free = spins down when idle (~8–30s cold start on next request).
+    # starter ($7/mo) = always on, no cold starts. Switch to "starter" before
+    # public production rollout; "free" is fine during closed testing.
+    plan: free
     buildCommand: npm ci --include=dev && npm run build
     startCommand: npm run start:prod
     healthCheckPath: /api/v1/health

@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 'use strict';
 
+// Load .env when present (self-hosted/local). On platforms that inject env vars
+// (Render/Neon) this is a harmless no-op.
+require('dotenv/config');
+
 /**
  * Applies Prisma migrations using pg directly — bypasses Prisma CLI's URL
  * parser which rejects Neon's hostname format with P1013.
@@ -26,8 +30,13 @@ async function main() {
     process.exit(1);
   }
 
-  // pg handles Neon's pooler URL and channel_binding natively
-  const client = new Client({ connectionString, ssl: { rejectUnauthorized: false } });
+  // Use SSL only for managed cloud Postgres (Neon/Render). A self-hosted local
+  // Postgres has SSL off by default, so forcing it there breaks the connection.
+  const useSsl = /sslmode=require|neon|render|amazonaws/.test(connectionString);
+  const client = new Client({
+    connectionString,
+    ssl: useSsl ? { rejectUnauthorized: false } : false,
+  });
   await client.connect();
   console.log('Connected. Running migrations...');
 
