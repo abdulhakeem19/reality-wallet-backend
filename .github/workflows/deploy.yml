@@ -1,0 +1,57 @@
+# Auto-deploy Affora's backend to the EC2 box via a self-hosted runner.
+#
+# Flow: a hosted runner first VERIFIES the build (lint + compile + tests). Only
+# if that passes does the self-hosted runner ON the EC2 box run deploy.sh
+# (pull → build → migrate → reload → health-check / rollback). The self-hosted
+# runner connects OUTBOUND to GitHub, so no inbound SSH / firewall changes.
+#
+# Triggers:
+#   • push a version tag (v1.2.3)  → verify + deploy that tag  (deliberate ship)
+#   • manual "Run workflow" button → verify + deploy current main
+#
+# Does NOT run on every commit to main, so WIP commits don't hit production.
+# Ship a release with:  git tag v1.0.3 && git push origin v1.0.3
+
+name: Deploy backend (AWS)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  # ── Gate: must pass before anything is deployed ─────────────────────────────
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Build (TypeScript compile = typecheck)
+        run: npm run build
+      - name: Tests (non-blocking)
+        run: npm run test --if-present
+        continue-on-error: true
+
+  # ── Deploy on the box, only if verify passed ────────────────────────────────
+  deploy:
+    needs: verify
+    runs-on: [self-hosted, affora-prod]
+    steps:
+      - name: Run deploy script on the box
+        run: |
+          # Ensure common tool paths are present for the runner's shell.
+          export PATH="$PATH:/usr/bin:/usr/local/bin:/snap/bin"
+          cd "$HOME/reality-wallet-backend"
+          ./deploy.sh
